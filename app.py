@@ -960,50 +960,37 @@ div[data-testid="stSelectbox"] > div > div:focus-within {
 /* Remove extra space that Streamlit adds around the selectbox */
 div[data-testid="stSelectbox"] { margin-bottom: 0 !important; }
 
-/* ── GPS prompt block ── */
-.gps-prompt {
-  background: var(--c-red-bg);
-  border: 2px dashed var(--c-red);
-  border-radius: 12px;
-  padding: 10px;
-  text-align: center;
-  margin: 10px 0 0 0;
+/* ── Inline GPS instruction ── */
+.gps-inline-tap {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-text);
+  text-align: right;
+  padding-right: 4px;
+  white-space: nowrap;
 }
-/* Pump up the streamlit-geolocation iframe so the small crosshair icon
-   stands out — wraps in a red-tinted circle that feels like a "tap me"
-   target instead of a tiny grey icon. Targets the iframe by its title
-   set by the streamlit-geolocation component. */
+.gps-inline-rest {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--c-text);
+  padding-left: 4px;
+  line-height: 1.4;
+}
+.gps-inline-rest b {
+  color: var(--c-text);
+  font-weight: 700;
+}
+/* Small clickable hover on the geolocation icon itself, no big red box */
 iframe[title*="streamlit_geolocation"] {
-  display: block !important;
-  margin: 0 auto !important;
-  transform: scale(1.6);
-  transform-origin: top center;
-  background: var(--c-red);
-  border-radius: 12px !important;
-  padding: 2px !important;
-  border: 2px solid var(--c-red) !important;
   cursor: pointer;
-  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease;
 }
 iframe[title*="streamlit_geolocation"]:hover {
-  transform: scale(1.7);
-  filter: brightness(1.1);
-  box-shadow: 0 4px 14px rgba(220,38,38,0.3);
+  transform: scale(1.15);
 }
-.gps-label {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--c-red-dark);
-  letter-spacing: 0.2px;
-}
-.loc-divider {
-  text-align: center;
-  font-size: 12px;
-  color: var(--c-text-3);
-  margin: 6px 0 4px 0;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
+/* Compact the geolocation component's surrounding container so the
+   inline sentence stays tight */
+div[data-testid="stIFrame"] { margin: 0 !important; padding: 0 !important; }
 
 /* ── Hover responsiveness on every clickable element ── */
 a[href^="tel:"],
@@ -1235,19 +1222,17 @@ auto_lat = st.session_state.gps_lat
 auto_lon = st.session_state.gps_lon
 have_gps = (auto_lat != 0.0 and auto_lon != 0.0)
 
-# ── Where are you input ────────────────────────────────────────────────────
-# GPS is the primary path (stacked on top, prominent), text input is the
-# fallback (smaller, below). The streamlit-geolocation component's icon
-# itself is small/fixed, so we frame it with a clear label + colored card
-# so users know exactly what to tap.
-st.markdown(
-    '<div class="gps-prompt">'
-    '<div class="gps-label">📍 Tap to share your location</div>'
-    '</div>',
-    unsafe_allow_html=True,
-)
-_gps_centre = st.columns([2, 1, 2])
-with _gps_centre[1]:
+# ── Where are you ────────────────────────────────────────────────────────
+# Inline instruction: "Tap [GPS icon] to share your location, or Type a
+# place name below". The GPS component is embedded directly inside the
+# sentence — no surrounding card, no separator, just a clean one-liner.
+_inline = st.columns([1, 1, 5], vertical_alignment="center")
+with _inline[0]:
+    st.markdown(
+        '<div class="gps-inline-tap">Tap</div>',
+        unsafe_allow_html=True,
+    )
+with _inline[1]:
     try:
         from streamlit_geolocation import streamlit_geolocation
         _loc = streamlit_geolocation()
@@ -1260,12 +1245,12 @@ with _gps_centre[1]:
             st.rerun()
     except ImportError:
         st.warning("Install `streamlit-geolocation` for one-tap GPS detection.")
-
-# Small divider between GPS and text input
-st.markdown(
-    '<div class="loc-divider">— or type a place name —</div>',
-    unsafe_allow_html=True,
-)
+with _inline[2]:
+    st.markdown(
+        '<div class="gps-inline-rest">to share your location, or '
+        '<b>type</b> a place name below</div>',
+        unsafe_allow_html=True,
+    )
 
 place_input = st.text_input(
     "📍 Where are you?",
@@ -1280,7 +1265,7 @@ place_txt = (place_input or "").strip()
 should_search = have_gps or bool(place_txt) or bool(user_msg)
 
 if not should_search:
-    st.caption("Tap the red target icon above to share your GPS location, or type a place.")
+    st.caption(" ")  # spacer — instruction is now inline above
 
 # Variables consumed by the results block below
 gps_lat = auto_lat
