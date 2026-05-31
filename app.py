@@ -710,17 +710,53 @@ def render_contact_card(c, faded=False):
                 st.error(t["feedback_fail"])
 
 
-def render_grouped_contacts(grouped):
+def section_order(intent):
     """
-    Render the three sections: Medical → Safety → Vehicle.
-    - Top 3 of each group visible by default
-    - "Show N more nearby" expander for the rest above floor
-    - "N lower-confidence (may not connect)" expander for below floor
-    - Empty sections are skipped
+    Return the section keys in the order they should be rendered, based on
+    what the user described. Default is Medical → Safety → Vehicle (the
+    Golden Hour philosophy: life before vehicle). But if the user said
+    "car breakdown" or "flat tyre" with no injury context, Vehicle &
+    Roadside is what they actually need first.
     """
+    urgency  = (intent or {}).get("urgency", "high")
+    services = (intent or {}).get("services", []) or []
+
+    # Life-threatening → medical first, no question
+    if urgency in ("critical", "high"):
+        return ["medical", "safety", "vehicle"]
+
+    # Roadside-shaped services requested → vehicle first
+    roadside = {"towing", "puncture", "highway_helpline", "fuel"}
+    if any(s in roadside for s in services):
+        return ["vehicle", "safety", "medical"]
+
+    # Police-only intent (e.g. "I want to file an FIR") → safety first
+    medical_terms = {"hospital", "trauma", "ambulance", "blood_bank"}
+    if "police" in services and not any(s in medical_terms for s in services):
+        return ["safety", "vehicle", "medical"]
+
+    # Anything else → default Medical → Safety → Vehicle
+    return ["medical", "safety", "vehicle"]
+
+
+def render_grouped_contacts(grouped, intent=None):
+    """
+    Render the three sections in priority order based on intent:
+      - Critical/high urgency → Medical → Safety → Vehicle
+      - Towing / puncture / highway → Vehicle → Safety → Medical
+      - Police-only → Safety → Vehicle → Medical
+      - Default → Medical → Safety → Vehicle
+    Top 3 visible per group, "Show more" + "lower-confidence" expanders.
+    """
+    order = section_order(intent)
+    key_to_group = {g["key"]: g for g in CATEGORY_GROUPS}
+
     any_rendered = False
-    for group in CATEGORY_GROUPS:
-        section = grouped.get(group["key"], {})
+    for key in order:
+        group = key_to_group.get(key)
+        if not group:
+            continue
+        section = grouped.get(key, {})
         visible = section.get("visible", [])
         hidden  = section.get("hidden", [])
 
@@ -1534,7 +1570,7 @@ if should_search:
         # ── Grouped contact list (Medical / Safety / Vehicle) ───────────────
         if all_contacts:
             grouped = group_contacts(all_contacts, urgency=urgency)
-            render_grouped_contacts(grouped)
+            render_grouped_contacts(grouped, intent=intent)
         else:
             # No local contacts from DB or OSM — show national numbers prominently
             st.markdown("""
