@@ -1642,24 +1642,10 @@ if should_search:
 # ── Below results: refinement + first aid + countries — all collapsed ────────
 st.markdown(
     '<div class="more-tools-header">More tools'
-    '<span>Refine the search · first-aid guide · international emergency numbers</span>'
+    '<span>First-aid guide · international emergency numbers</span>'
     '</div>',
     unsafe_allow_html=True,
 )
-
-# ── Optional "Describe situation" — feeds back into the parser on next run ───
-with st.expander("💬 Tell us what happened (optional — helps prioritise)", expanded=False):
-    _new_msg = st.text_area(
-        T["input_label"],
-        value=st.session_state.get("refine_msg", ""),
-        placeholder=T["input_placeholder"],
-        height=80,
-        label_visibility="collapsed",
-        key="_refine_textarea",
-    )
-    if st.button("Update results", type="primary"):
-        st.session_state["refine_msg"] = _new_msg
-        st.rerun()
 
 # ── First Aid (toggleable — render_first_aid uses its own expanders, so we
 # can't wrap it inside another st.expander; Streamlit forbids nesting) ──────
