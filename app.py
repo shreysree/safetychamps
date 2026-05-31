@@ -1327,13 +1327,40 @@ place_input = st.text_input(
     label_visibility="collapsed",
 )
 
-# ── Decide whether to run a search ─────────────────────────────────────────
+# ── Search trigger — explicit button, not auto-fire ───────────────────────
+# Earlier versions auto-ran the search the moment GPS resolved or the user
+# typed a place. That meant the spinner could surprise users who were still
+# typing or who tapped GPS exploratively. Now there's a clear primary button
+# the user has to tap to confirm "yes, search now". The button is disabled
+# until a location signal exists, so users see it's the next step.
 user_msg = st.session_state.get("refine_msg", "").strip()
 place_txt = (place_input or "").strip()
-should_search = have_gps or bool(place_txt) or bool(user_msg)
+has_location_signal = have_gps or bool(place_txt)
 
-if not should_search:
-    st.caption(" ")  # spacer — instruction is now inline above
+# Show the button only until the user has triggered a search at least once;
+# after that, refinement (Tell us what happened) takes over the rerun flow.
+if not st.session_state.get("search_triggered", False):
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    if st.button(
+        "🔍 Find emergency help",
+        type="primary",
+        use_container_width=True,
+        disabled=not has_location_signal,
+        help=("Share GPS or type a place first"
+              if not has_location_signal else
+              "Search for the nearest hospitals, police, and roadside help"),
+    ):
+        st.session_state.search_triggered = True
+        st.rerun()
+
+# Search runs only after the user has confirmed
+should_search = (
+    st.session_state.get("search_triggered", False)
+    and (has_location_signal or bool(user_msg))
+)
+
+if not st.session_state.get("search_triggered", False):
+    st.caption(" ")  # spacer
 
 # Variables consumed by the results block below
 gps_lat = auto_lat
