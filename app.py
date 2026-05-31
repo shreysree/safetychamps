@@ -1017,6 +1017,49 @@ div[data-testid="stIFrame"] {
 footer[class*="ViewerBadge"] { display: none !important; }
 .stApp > footer { display: none !important; }
 
+/* ── Block interactions while a spinner is running ──
+   When st.spinner shows, we gray out and disable every other element
+   on the page so accidental taps during the "Finding nearby help…"
+   load can't fire. Uses :has() to detect the spinner anywhere in the
+   app and applies styling to everything except the spinner itself. */
+.stApp:has(div[data-testid="stSpinner"]) [data-testid="stMain"]
+  > div > div > div > *:not(:has(div[data-testid="stSpinner"])) {
+  opacity: 0.4 !important;
+  pointer-events: none !important;
+  filter: grayscale(20%);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+/* Make the spinner itself more visible — centred big circle + text */
+div[data-testid="stSpinner"] {
+  padding: 18px !important;
+  background: var(--c-white);
+  border: 2px solid var(--c-red);
+  border-radius: 14px;
+  margin: 12px 0 !important;
+  font-size: 16px !important;
+  font-weight: 700;
+  color: var(--c-red-dark);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.18);
+}
+
+/* ── "More tools" header above the below-results section ── */
+.more-tools-header {
+  margin: 22px 0 8px 0;
+  padding: 8px 0 8px 14px;
+  border-left: 4px solid var(--c-red);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c-text);
+  letter-spacing: 0.2px;
+}
+.more-tools-header span {
+  color: var(--c-text-2);
+  font-weight: 500;
+  font-size: 12px;
+  display: block;
+  margin-top: 2px;
+}
+
 /* ── Hover responsiveness on every clickable element ── */
 a[href^="tel:"],
 a[href*="emergency.html"],
@@ -1512,7 +1555,12 @@ if should_search:
 """)
 
 # ── Below results: refinement + first aid + countries — all collapsed ────────
-st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+st.markdown(
+    '<div class="more-tools-header">More tools'
+    '<span>Refine the search · first-aid guide · international emergency numbers</span>'
+    '</div>',
+    unsafe_allow_html=True,
+)
 
 # ── Optional "Describe situation" — feeds back into the parser on next run ───
 with st.expander("💬 Tell us what happened (optional — helps prioritise)", expanded=False):
