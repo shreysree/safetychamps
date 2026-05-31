@@ -1560,11 +1560,21 @@ if should_search:
 """, unsafe_allow_html=True)
 
     if lat and lon:
-        with st.spinner("Finding nearby help…"):
-            db_contacts  = fetch_db_contacts(lat, lon, radius_km)
-            osm_contacts = fetch_osm_contacts(lat, lon, int(radius_km*1000), _osm_cats or intent.get("services"))
-
-        all_contacts = merge_contacts(db_contacts, osm_contacts)
+        # Cache the merged contact list per (location, radius, services) so a
+        # widget click (like the thumbs-up feedback button) doesn't re-fire
+        # the OSM Overpass call and bring back the "Finding nearby help…"
+        # spinner. Cache lives in session_state, so it resets per session.
+        _svc_for_key = tuple(sorted(_osm_cats or intent.get("services") or []))
+        _cache_key = (round(lat, 4), round(lon, 4), int(radius_km), _svc_for_key)
+        _cache = st.session_state.setdefault("contacts_cache", {})
+        if _cache_key in _cache:
+            all_contacts = _cache[_cache_key]
+        else:
+            with st.spinner("Finding nearby help…"):
+                db_contacts  = fetch_db_contacts(lat, lon, radius_km)
+                osm_contacts = fetch_osm_contacts(lat, lon, int(radius_km*1000), _osm_cats or intent.get("services"))
+            all_contacts = merge_contacts(db_contacts, osm_contacts)
+            _cache[_cache_key] = all_contacts
 
         # ── Compact status block: location + ETA + urgency + blackspot ─────
         hospitals = [c for c in all_contacts if c.get("category") == "hospital"]
