@@ -1149,11 +1149,14 @@ auto_lon = st.session_state.gps_lon
 have_gps = (auto_lat != 0.0 and auto_lon != 0.0)
 
 # ── Where are you input row ────────────────────────────────────────────────
-_loc_col1, _loc_col2 = st.columns([3, 1])
+# GPS button gets a bigger share of the row — it's the primary path. Text
+# input is the secondary path for when GPS is denied or the user wants to
+# search a different location (e.g. demo / family member elsewhere).
+_loc_col1, _loc_col2 = st.columns([2, 1])
 with _loc_col1:
     place_input = st.text_input(
         "📍 Where are you?",
-        placeholder="Type a city, NH number, or landmark — e.g. Hosur · NH-44 · Chennai",
+        placeholder="Or type: Hosur · NH-44 · Chennai",
         key="place_input",
         label_visibility="collapsed",
     )
