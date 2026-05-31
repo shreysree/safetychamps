@@ -313,11 +313,20 @@ def geocode_text(text):
         if results:
             r = results[0]
             addr = r.get("address", {})
+            # Nominatim's `type`/`class` tells us how coarse the match is.
+            # city / town / state / administrative => the lat/lon is a centroid,
+            # so any "X km away" computed from it is misleading.
+            coarse = {"city", "town", "village", "state", "administrative",
+                      "country", "county", "region", "municipality"}
+            ntype = (r.get("type") or "").lower()
+            nclass = (r.get("class") or "").lower()
+            precision = "city" if (ntype in coarse or nclass in coarse) else "precise"
             return {
                 "lat": float(r["lat"]), "lon": float(r["lon"]),
                 "display": r.get("display_name", ""),
                 "city": addr.get("city") or addr.get("town") or addr.get("village", ""),
                 "state": addr.get("state", ""),
+                "precision": precision,
             }
     except Exception as e:
         st.warning(f"Geocoding issue: {e}")
@@ -488,7 +497,17 @@ def parse_intent_groq(message, api_key):
         )
         raw = resp.choices[0].message.content.strip()
         raw = re.sub(r"```[a-z]*","",raw).strip().strip("```")
-        return {**_rule_parse(message), **json.loads(raw)}
+        merged = {**_rule_parse(message), **json.loads(raw)}
+        # Groq sometimes returns urgency as null / "null" / unknown string for
+        # vague queries (e.g. just a place name). Coerce back to a sane
+        # default so the UI doesn't render "Urgency: NULL".
+        valid_urgency = {"critical", "high", "medium", "low"}
+        u = merged.get("urgency")
+        if not isinstance(u, str) or u.lower() not in valid_urgency:
+            merged["urgency"] = _rule_parse(message).get("urgency", "medium")
+        else:
+            merged["urgency"] = u.lower()
+        return merged
     except Exception:
         return _rule_parse(message)
 
@@ -646,13 +665,20 @@ def render_contact_card(c, faded=False):
     tier_label = {1: "National", 2: "Verified", 3: "Local"}.get(c.get("tier", 3), "Local")
     fade_prefix = "⚠️ " if faded else ""
 
+    # If we only have a city-centroid (typed place name like "Bengaluru"
+    # instead of GPS or a precise address), per-card distance is misleading
+    # — it's distance to the city centre, not to the user. Hide the number.
+    precision = st.session_state.get("geo_precision", "precise")
+    show_distance = precision != "city" and isinstance(dist, (int, float))
+    dist_chunk = f"{dist} km" if show_distance else "in city"
+
     # Each card lives in a bordered container so the layout stays visually
     # separated without using expanders.
     with st.container(border=True):
         # Header line
         st.markdown(
             f"{fade_prefix}{icon} **{c['name']}** &nbsp;·&nbsp; "
-            f"{dist} km &nbsp;·&nbsp; {badge_icon} {badge_text} "
+            f"{dist_chunk} &nbsp;·&nbsp; {badge_icon} {badge_text} "
             f"&nbsp;·&nbsp; {tier_label}",
             unsafe_allow_html=True,
         )
@@ -1458,6 +1484,7 @@ if should_search:
             location_display = geo.get("display", "")
             geo_source = "offline"
             location_label = f"📍 {geo.get('city', place_txt).title()} (offline lookup)"
+            st.session_state["geo_precision"] = geo.get("precision", "city")
         else:
             with st.spinner("Finding location…"):
                 geo = geocode_text(intent.get("location") or place_txt)
@@ -1467,8 +1494,12 @@ if should_search:
                 geo_source = "online"
                 city, state = geo.get("city", ""), geo.get("state", "")
                 location_label = f"📍 {city}, {state}" if (city or state) else f"📍 {place_txt}"
+                st.session_state["geo_precision"] = geo.get("precision", "precise")
             else:
                 st.warning(f"Couldn't find '{place_txt}'. Try a major city or NH-44.")
+    # GPS coords are always precise
+    if have_gps:
+        st.session_state["geo_precision"] = "precise"
 
     # ── Black Spot Warning (compact, only if within 5 km) ──────────────────
     _blackspot_line = ""
@@ -1521,11 +1552,25 @@ if should_search:
 
         # ── Compact status block: location + ETA + urgency + blackspot ─────
         hospitals = [c for c in all_contacts if c.get("category") == "hospital"]
-        gh = golden_hour(hospitals[0]["distance_km"], intent.get("on_highway", False)) if hospitals else None
-        urgency = intent.get("urgency", "high")
+        # ETA is only honest when we have a precise location. For a typed city
+        # name we measured distances from the city centroid, so a "1 min" claim
+        # would be a lie — suppress it and show a precision note instead.
+        precision = st.session_state.get("geo_precision", "precise")
+        gh = (golden_hour(hospitals[0]["distance_km"], intent.get("on_highway", False))
+              if (hospitals and precision != "city") else None)
+        urgency_raw = intent.get("urgency")
+        if not isinstance(urgency_raw, str) or urgency_raw.lower() not in {"critical","high","medium","low"}:
+            urgency = "medium"
+        else:
+            urgency = urgency_raw.lower()
         urgency_dot = {"critical":"🔴","high":"🟠","medium":"🟡","low":"🟢"}.get(urgency, "🟠")
         gh_color = {"green":"#16A34A","amber":"#D97706","red":"#DC2626"}.get(gh["status"], "#4B5563") if gh else "#4B5563"
-        eta_line = f"<span style=\"color:{gh_color}\">{gh['icon']} ~{gh['eta']} min to nearest hospital</span>" if gh else ""
+        if gh:
+            eta_line = f"<span style=\"color:{gh_color}\">{gh['icon']} ~{gh['eta']} min to nearest hospital</span>"
+        elif precision == "city":
+            eta_line = '<span style="color:#92400E">📍 Centred on city — share GPS for exact distance</span>'
+        else:
+            eta_line = ""
 
         st.markdown(
             f'<div style="background:#F8FAFC;border:1px solid #E2E8F0;'

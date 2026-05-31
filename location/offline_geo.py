@@ -223,13 +223,13 @@ def lookup_offline(text: str):
                     return {"lat": lat, "lon": lon,
                             "display": f"{city_name.title()} area",
                             "city": city_name.title(), "state": "",
-                            "source": "offline"}
+                            "source": "offline", "precision": "city"}
             # Return midpoint of corridor if no city matched
             mid = points[len(points)//2]
             return {"lat": mid[0], "lon": mid[1],
                     "display": f"{nh_key.upper()} corridor",
                     "city": mid[2], "state": "",
-                    "source": "offline"}
+                    "source": "offline", "precision": "city"}
 
     # 2. Apply aliases
     for alias, canonical in ALIASES.items():
@@ -249,6 +249,6 @@ def lookup_offline(text: str):
         return {"lat": lat, "lon": lon,
                 "display": city_name.title(),
                 "city": city_name.title(), "state": "",
-                "source": "offline"}
+                "source": "offline", "precision": "city"}
 
     return None
