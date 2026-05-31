@@ -960,6 +960,93 @@ div[data-testid="stSelectbox"] > div > div:focus-within {
 /* Remove extra space that Streamlit adds around the selectbox */
 div[data-testid="stSelectbox"] { margin-bottom: 0 !important; }
 
+/* ── GPS prompt block ── */
+.gps-prompt {
+  background: var(--c-red-bg);
+  border: 2px dashed var(--c-red);
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+  margin: 10px 0 0 0;
+}
+/* Pump up the streamlit-geolocation iframe so the small crosshair icon
+   stands out — wraps in a red-tinted circle that feels like a "tap me"
+   target instead of a tiny grey icon. Targets the iframe by its title
+   set by the streamlit-geolocation component. */
+iframe[title*="streamlit_geolocation"] {
+  display: block !important;
+  margin: 0 auto !important;
+  transform: scale(1.6);
+  transform-origin: top center;
+  background: var(--c-red);
+  border-radius: 12px !important;
+  padding: 2px !important;
+  border: 2px solid var(--c-red) !important;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+iframe[title*="streamlit_geolocation"]:hover {
+  transform: scale(1.7);
+  filter: brightness(1.1);
+  box-shadow: 0 4px 14px rgba(220,38,38,0.3);
+}
+.gps-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-red-dark);
+  letter-spacing: 0.2px;
+}
+.loc-divider {
+  text-align: center;
+  font-size: 12px;
+  color: var(--c-text-3);
+  margin: 6px 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ── Hover responsiveness on every clickable element ── */
+a[href^="tel:"],
+a[href*="emergency.html"],
+a[href*="wa.me"],
+a[href^="sms:"],
+a[href*="maps"] {
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+a[href^="tel:"]:hover,
+a[href*="emergency.html"]:hover,
+a[href*="wa.me"]:hover,
+a[href^="sms:"]:hover,
+a[href*="maps"]:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+a[href^="tel:"]:active,
+a[href*="emergency.html"]:active,
+a[href*="wa.me"]:active,
+a[href^="sms:"]:active,
+a[href*="maps"]:active {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+/* Streamlit native buttons get hover too */
+div.stButton > button {
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease !important;
+}
+div.stButton > button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+/* Expanders feel more responsive on hover */
+div[data-testid="stExpander"] > details > summary {
+  transition: background 0.15s ease;
+}
+div[data-testid="stExpander"] > details > summary:hover {
+  background: var(--c-surface);
+}
+
 /* ── MOBILE (under 600px) ── */
 @media (max-width: 600px) {
   /* Only stack columns that aren't the main header pair */
@@ -1148,23 +1235,19 @@ auto_lat = st.session_state.gps_lat
 auto_lon = st.session_state.gps_lon
 have_gps = (auto_lat != 0.0 and auto_lon != 0.0)
 
-# ── Where are you input row ────────────────────────────────────────────────
-# GPS button gets a bigger share of the row — it's the primary path. Text
-# input is the secondary path for when GPS is denied or the user wants to
-# search a different location (e.g. demo / family member elsewhere).
-_loc_col1, _loc_col2 = st.columns([2, 1])
-with _loc_col1:
-    place_input = st.text_input(
-        "📍 Where are you?",
-        placeholder="Or type: Hosur · NH-44 · Chennai",
-        key="place_input",
-        label_visibility="collapsed",
-    )
-with _loc_col2:
-    # streamlit-geolocation renders a small button that, on tap, prompts the
-    # browser for location and returns a dict with latitude/longitude. The
-    # component handles all the iframe communication via Streamlit's
-    # official protocol.
+# ── Where are you input ────────────────────────────────────────────────────
+# GPS is the primary path (stacked on top, prominent), text input is the
+# fallback (smaller, below). The streamlit-geolocation component's icon
+# itself is small/fixed, so we frame it with a clear label + colored card
+# so users know exactly what to tap.
+st.markdown(
+    '<div class="gps-prompt">'
+    '<div class="gps-label">📍 Tap to share your location</div>'
+    '</div>',
+    unsafe_allow_html=True,
+)
+_gps_centre = st.columns([2, 1, 2])
+with _gps_centre[1]:
     try:
         from streamlit_geolocation import streamlit_geolocation
         _loc = streamlit_geolocation()
@@ -1178,13 +1261,26 @@ with _loc_col2:
     except ImportError:
         st.warning("Install `streamlit-geolocation` for one-tap GPS detection.")
 
+# Small divider between GPS and text input
+st.markdown(
+    '<div class="loc-divider">— or type a place name —</div>',
+    unsafe_allow_html=True,
+)
+
+place_input = st.text_input(
+    "📍 Where are you?",
+    placeholder="Hosur · NH-44 · Chennai · Bengaluru",
+    key="place_input",
+    label_visibility="collapsed",
+)
+
 # ── Decide whether to run a search ─────────────────────────────────────────
 user_msg = st.session_state.get("refine_msg", "").strip()
 place_txt = (place_input or "").strip()
 should_search = have_gps or bool(place_txt) or bool(user_msg)
 
 if not should_search:
-    st.caption("Tap **📍** to share GPS location, or type a place name above.")
+    st.caption("Tap the red target icon above to share your GPS location, or type a place.")
 
 # Variables consumed by the results block below
 gps_lat = auto_lat
