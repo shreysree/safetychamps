@@ -672,84 +672,85 @@ def render_contact_card(c, faded=False):
     show_distance = precision != "city" and isinstance(dist, (int, float))
     dist_chunk = f"{dist} km" if show_distance else "in city"
 
-    # Each card lives in a bordered container so the layout stays visually
-    # separated without using expanders.
-    with st.container(border=True):
-        # Header line
-        st.markdown(
-            f"{fade_prefix}{icon} **{c['name']}** &nbsp;·&nbsp; "
-            f"{dist_chunk} &nbsp;·&nbsp; {badge_icon} {badge_text} "
-            f"&nbsp;·&nbsp; {tier_label}",
-            unsafe_allow_html=True,
-        )
+    # Build the static parts of the card as one HTML block, so we get full
+    # control over padding/hover/structure and there's no Streamlit container
+    # box for the address caption to overflow out of.
+    cid = c.get("id", 0)
+    phone_clean = urllib.parse.quote(phone) if (phone and phone != "--") else ""
+    phone_html = (
+        f'<a href="tel:{phone_clean}" class="rc-phone">{phone}</a>'
+        if phone and phone != "--"
+        else f'<div class="rc-no-phone">{t["no_phone"]}</div>'
+    )
+    badge_html = ""
+    if phone and phone != "--":
+        _bh = get_badge_html(phone, c.get("country_code", "IN"))
+        if _bh:
+            badge_html = _bh
+    alt_html = ""
+    if c.get("phone_alt"):
+        alt_clean = urllib.parse.quote(c["phone_alt"])
+        alt_html = (f'<div class="rc-alt">Alt: <a href="tel:{alt_clean}">'
+                    f'<b>{c["phone_alt"]}</b></a></div>')
+    directions_html = ""
+    if (c.get("lat") and c.get("lon")
+        and c.get("source") in TRUSTED_COORD_SOURCES):
+        maps_url = (f"https://www.google.com/maps/dir/?api=1"
+                    f"&destination={c['lat']},{c['lon']}")
+        directions_html = (f'<a href="{maps_url}" target="_blank" '
+                           f'class="rc-directions">🗺️ Get directions</a>')
+    address_html = (f'<div class="rc-addr">Addr: {c["address"]}</div>'
+                    if c.get("address") else "")
+    low_conf_html = (f'<div class="rc-low-conf">⚠️ {t["low_conf_warning"]}</div>'
+                     if conf < 50 else "")
+    # Confidence bar — single shaded fill, no fixed-pixel container box
+    conf_bar = (f'<div class="rc-conf-label">{t["confidence_label"]}: {conf}%</div>'
+                f'<div class="rc-conf-track">'
+                f'<div class="rc-conf-fill" style="width:{conf}%"></div></div>')
+    source_html = (f'<div class="rc-source">{t["source_label"]}: '
+                   f'{c.get("source","unknown")} | Tier {c.get("tier",3)}</div>')
 
-        col_a, col_b, col_c = st.columns([2, 2, 1])
-        with col_a:
-            if phone and phone != "--":
-                phone_clean = urllib.parse.quote(phone)
-                st.markdown(
-                    f'<a href="tel:{phone_clean}" style="text-decoration:none">'
-                    f'<p class="big-phone" style="margin:0">{phone}</p></a>',
-                    unsafe_allow_html=True,
-                )
-                badge_html = get_badge_html(phone, c.get("country_code", "IN"))
-                if badge_html:
-                    st.markdown(badge_html, unsafe_allow_html=True)
-                if c.get("phone_alt"):
-                    alt_clean = urllib.parse.quote(c["phone_alt"])
-                    st.markdown(
-                        f'Alt: <a href="tel:{alt_clean}">**{c["phone_alt"]}**</a>',
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.warning(t["no_phone"])
-            # Directions — only for contacts with TRUSTED building-level
-            # coords. District-seed rows are excluded because their
-            # coordinates are admin centroids + a 500m offset to prevent
-            # pin overlap, not the actual hospital location.
-            if (c.get("lat") and c.get("lon")
-                and c.get("source") in TRUSTED_COORD_SOURCES):
-                maps_url = (f"https://www.google.com/maps/dir/?api=1"
-                            f"&destination={c['lat']},{c['lon']}")
-                st.markdown(
-                    f'<a href="{maps_url}" target="_blank" '
-                    f'style="display:inline-block;margin-top:6px;background:#1D4ED8;'
-                    f'color:#FFFFFF;padding:6px 12px;border-radius:6px;'
-                    f'font-size:13px;font-weight:600;text-decoration:none">'
-                    f'🗺️ Get directions</a>',
-                    unsafe_allow_html=True,
-                )
-            if c.get("address"):
-                st.caption(f"Addr: {c['address']}")
-        with col_b:
-            st.progress(conf / 100, text=f"{t['confidence_label']}: {conf}%")
-            st.caption(f"{t['source_label']}: {c.get('source', 'unknown')} | Tier {c.get('tier', 3)}")
-            if conf < 50:
-                st.warning(t["low_conf_warning"])
-        with col_c:
-            cid = c.get("id", 0)
-            if cid:
-                # Compact thumbs widget. Returns 0 (👎) / 1 (👍) / None.
-                # st.feedback is in Streamlit >=1.37; fall back to plain
-                # buttons on older builds so we don't crash.
-                fb_key = f"fb_{cid}_{c['name'][:8]}"
-                try:
-                    fb = st.feedback("thumbs", key=fb_key)
-                    if fb == 1:
-                        record_feedback(cid, True)
-                        st.toast(t["feedback_ok"], icon="✅")
-                    elif fb == 0:
-                        record_feedback(cid, False)
-                        st.toast(t["feedback_fail"], icon="⚠️")
-                except Exception:
-                    if st.button("👍", key=f"ok_{cid}_{c['name'][:8]}",
-                                 help=t["btn_worked"]):
-                        record_feedback(cid, True)
-                        st.toast(t["feedback_ok"], icon="✅")
-                    if st.button("👎", key=f"no_{cid}_{c['name'][:8]}",
-                                 help=t["btn_failed"]):
-                        record_feedback(cid, False)
-                        st.toast(t["feedback_fail"], icon="⚠️")
+    st.markdown(
+        f'<div class="rc-card{" rc-faded" if faded else ""}">'
+        f'  <div class="rc-head">{fade_prefix}{icon} <b>{c["name"]}</b> '
+        f'    &nbsp;·&nbsp; {dist_chunk} &nbsp;·&nbsp; '
+        f'    {badge_icon} {badge_text} &nbsp;·&nbsp; {tier_label}</div>'
+        f'  <div class="rc-body">'
+        f'    <div class="rc-left">'
+        f'      {phone_html}{badge_html}{alt_html}{directions_html}{address_html}'
+        f'    </div>'
+        f'    <div class="rc-right">'
+        f'      {conf_bar}{source_html}{low_conf_html}'
+        f'    </div>'
+        f'  </div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Thumbs feedback — only Streamlit widget left in the card, sits below
+    # the HTML body. We use a narrow right-aligned column so it doesn't
+    # take a full row.
+    if cid:
+        fb_key = f"fb_{cid}_{c['name'][:8]}"
+        _, _fbcol = st.columns([8, 2])
+        with _fbcol:
+            try:
+                fb = st.feedback("thumbs", key=fb_key)
+                if fb == 1:
+                    record_feedback(cid, True)
+                    st.toast(t["feedback_ok"], icon="✅")
+                elif fb == 0:
+                    record_feedback(cid, False)
+                    st.toast(t["feedback_fail"], icon="⚠️")
+            except Exception:
+                if st.button("👍", key=f"ok_{cid}_{c['name'][:8]}",
+                             help=t["btn_worked"]):
+                    record_feedback(cid, True)
+                    st.toast(t["feedback_ok"], icon="✅")
+                if st.button("👎", key=f"no_{cid}_{c['name'][:8]}",
+                             help=t["btn_failed"]):
+                    record_feedback(cid, False)
+                    st.toast(t["feedback_fail"], icon="⚠️")
 
 
 def section_order(intent):
@@ -999,6 +1000,90 @@ h3 { margin-top: 0.6rem !important; margin-bottom: 0.3rem !important; }
   color: var(--c-blue-dark);
   margin: 4px 0;
   letter-spacing: 1px;
+}
+
+/* ── New borderless contact card ──────────────────────────────────────── */
+.rc-card {
+  padding: 12px 14px;
+  margin: 4px 0;
+  border: 1px solid transparent;
+  border-bottom: 1px solid #F1F5F9;
+  border-radius: 10px;
+  background: #FFFFFF;
+  transition: background 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease, transform 0.12s ease;
+}
+.rc-card:hover {
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+.rc-faded { opacity: 0.6; }
+.rc-head {
+  font-size: 15px;
+  line-height: 1.4;
+  color: #111827;
+  margin-bottom: 10px;
+}
+.rc-body {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+.rc-left { min-width: 0; }
+.rc-right { min-width: 0; }
+.rc-phone {
+  display: inline-block;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--c-blue-dark);
+  letter-spacing: 1px;
+  text-decoration: none;
+  margin-bottom: 4px;
+}
+.rc-phone:hover { text-decoration: underline; }
+.rc-no-phone {
+  background: #FEF3C7; color: #92400E;
+  padding: 6px 10px; border-radius: 6px;
+  font-size: 13px; display: inline-block;
+}
+.rc-alt { font-size: 13px; color: #374151; margin-top: 2px; }
+.rc-alt a { color: var(--c-blue-dark); text-decoration: none; }
+.rc-directions {
+  display: inline-block; margin-top: 8px;
+  background: #1D4ED8; color: #FFFFFF;
+  padding: 6px 12px; border-radius: 6px;
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.rc-directions:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.rc-addr {
+  font-size: 12px; color: #6B7280; margin-top: 8px;
+  word-wrap: break-word; overflow-wrap: break-word;
+}
+.rc-conf-label { font-size: 13px; color: #374151; margin-bottom: 4px; }
+.rc-conf-track {
+  height: 8px; background: #E5E7EB;
+  border-radius: 4px; overflow: hidden;
+}
+.rc-conf-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #EF4444 0%, #F59E0B 50%, #10B981 100%);
+  transition: width 0.4s ease;
+}
+.rc-source { font-size: 12px; color: #6B7280; margin-top: 8px; }
+.rc-low-conf {
+  margin-top: 6px; padding: 6px 10px;
+  background: #FEF3C7; color: #92400E;
+  border-radius: 6px; font-size: 12px;
+}
+
+/* On phones, stack the card body so phone + confidence don't squash */
+@media (max-width: 640px) {
+  .rc-body { grid-template-columns: 1fr; gap: 10px; }
+  .rc-phone { font-size: 28px; }
 }
 
 /* ── Streamlit button overrides ── */
