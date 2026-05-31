@@ -1342,13 +1342,13 @@ has_location_signal = have_gps or bool(place_txt)
 if not st.session_state.get("search_triggered", False):
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
     if st.button(
-        "🔍 Find emergency help",
+        "Go →",
         type="primary",
         use_container_width=True,
         disabled=not has_location_signal,
         help=("Share GPS or type a place first"
               if not has_location_signal else
-              "Search for the nearest hospitals, police, and roadside help"),
+              "Find nearest hospitals, police, and roadside help"),
     ):
         st.session_state.search_triggered = True
         st.rerun()
