@@ -960,36 +960,35 @@ div[data-testid="stSelectbox"] > div > div:focus-within {
 /* Remove extra space that Streamlit adds around the selectbox */
 div[data-testid="stSelectbox"] { margin-bottom: 0 !important; }
 
-/* ── Inline GPS instruction ── */
-.gps-inline-tap {
+/* ── Stacked GPS instruction ── */
+.gps-caption {
+  text-align: center;
   font-size: 15px;
   font-weight: 600;
   color: var(--c-text);
-  text-align: right;
-  padding-right: 4px;
-  white-space: nowrap;
+  margin: 6px 0 4px 0;
 }
-.gps-inline-rest {
-  font-size: 15px;
+.loc-divider {
+  text-align: center;
+  font-size: 12px;
+  color: var(--c-text-3);
+  margin: 6px 0 6px 0;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
   font-weight: 500;
-  color: var(--c-text);
-  padding-left: 4px;
-  line-height: 1.4;
 }
-.gps-inline-rest b {
-  color: var(--c-text);
-  font-weight: 700;
-}
-/* Small clickable hover on the geolocation icon itself, no big red box */
+/* GPS icon — subtle hover, slightly bigger so it's tap-friendly */
 iframe[title*="streamlit_geolocation"] {
+  display: block !important;
+  margin: 0 auto !important;
   cursor: pointer;
+  transform: scale(1.3);
+  transform-origin: top center;
   transition: transform 0.15s ease;
 }
 iframe[title*="streamlit_geolocation"]:hover {
-  transform: scale(1.15);
+  transform: scale(1.4);
 }
-/* Compact the geolocation component's surrounding container so the
-   inline sentence stays tight */
 div[data-testid="stIFrame"] { margin: 0 !important; padding: 0 !important; }
 
 /* ── Hover responsiveness on every clickable element ── */
@@ -1223,16 +1222,16 @@ auto_lon = st.session_state.gps_lon
 have_gps = (auto_lat != 0.0 and auto_lon != 0.0)
 
 # ── Where are you ────────────────────────────────────────────────────────
-# Inline instruction: "Tap [GPS icon] to share your location, or Type a
-# place name below". The GPS component is embedded directly inside the
-# sentence — no surrounding card, no separator, just a clean one-liner.
-_inline = st.columns([1, 1, 5], vertical_alignment="center")
-with _inline[0]:
-    st.markdown(
-        '<div class="gps-inline-tap">Tap</div>',
-        unsafe_allow_html=True,
-    )
-with _inline[1]:
+# Streamlit columns stack vertically on mobile, which broke the previous
+# inline layout. Switching to an intentionally stacked design that looks
+# clean on every screen size:
+#
+#                     [GPS icon]
+#              Tap to share your location
+#                     — or type —
+#         [Hosur · NH-44 · Chennai · Bengaluru]
+_btn_row = st.columns([2, 1, 2])
+with _btn_row[1]:
     try:
         from streamlit_geolocation import streamlit_geolocation
         _loc = streamlit_geolocation()
@@ -1245,12 +1244,12 @@ with _inline[1]:
             st.rerun()
     except ImportError:
         st.warning("Install `streamlit-geolocation` for one-tap GPS detection.")
-with _inline[2]:
-    st.markdown(
-        '<div class="gps-inline-rest">to share your location, or '
-        '<b>type</b> a place name below</div>',
-        unsafe_allow_html=True,
-    )
+
+st.markdown(
+    '<div class="gps-caption">Tap to share your location</div>'
+    '<div class="loc-divider">— or type a place name —</div>',
+    unsafe_allow_html=True,
+)
 
 place_input = st.text_input(
     "📍 Where are you?",
