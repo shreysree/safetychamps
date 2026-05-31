@@ -1153,7 +1153,7 @@ _loc_col1, _loc_col2 = st.columns([3, 1])
 with _loc_col1:
     place_input = st.text_input(
         "📍 Where are you?",
-        placeholder="Auto-locating · or type: Hosur · NH-44 · Chennai",
+        placeholder="Type a city, NH number, or landmark — e.g. Hosur · NH-44 · Chennai",
         key="place_input",
         label_visibility="collapsed",
     )
@@ -1181,7 +1181,7 @@ place_txt = (place_input or "").strip()
 should_search = have_gps or bool(place_txt) or bool(user_msg)
 
 if not should_search:
-    st.caption("Tap **📍 GPS** to share location, or type a city / NH number above.")
+    st.caption("Tap **📍** to share GPS location, or type a place name above.")
 
 # Variables consumed by the results block below
 gps_lat = auto_lat
