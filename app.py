@@ -977,19 +977,38 @@ div[data-testid="stSelectbox"] { margin-bottom: 0 !important; }
   letter-spacing: 1.2px;
   font-weight: 500;
 }
-/* GPS icon — subtle hover, slightly bigger so it's tap-friendly */
+/* GPS icon — explicit min size so it stays visible on mobile Safari.
+   transform: scale() doesn't change layout dimensions, so we set
+   min-width/min-height in pixels on both the iframe AND its Streamlit
+   wrapper to guarantee a tap target. Light red background + border so
+   it's recognisable as a button without being the heavy dashed card
+   we tried earlier. */
 iframe[title*="streamlit_geolocation"] {
   display: block !important;
   margin: 0 auto !important;
   cursor: pointer;
-  transform: scale(1.3);
-  transform-origin: top center;
-  transition: transform 0.15s ease;
+  min-width: 64px !important;
+  min-height: 64px !important;
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 12px !important;
+  background: var(--c-red-bg) !important;
+  border: 1.5px solid var(--c-red) !important;
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 iframe[title*="streamlit_geolocation"]:hover {
-  transform: scale(1.4);
+  filter: brightness(1.05);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.22);
+  transform: translateY(-1px);
 }
-div[data-testid="stIFrame"] { margin: 0 !important; padding: 0 !important; }
+div[data-testid="stIFrame"] {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 70px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
 
 /* ── Hover responsiveness on every clickable element ── */
 a[href^="tel:"],
