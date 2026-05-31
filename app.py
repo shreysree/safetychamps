@@ -977,26 +977,31 @@ div[data-testid="stSelectbox"] { margin-bottom: 0 !important; }
   letter-spacing: 1.2px;
   font-weight: 500;
 }
-/* GPS icon — keep the React component's natural size (~24×24) but
-   visually scale it 1.8× from its centre so the small crosshair reads
-   as a tappable target. No box/border (those made the icon look stuck
-   in the corner because streamlit-geolocation doesn't fill its iframe). */
+/* GPS icon — explicit pixel dimensions so the iframe doesn't collapse
+   on mobile Safari. Sized to ~match the React icon's natural size so
+   it doesn't look like a tiny dot in a big empty box. Scaled up 1.6×
+   visually for prominence. Transparent background, soft outer ring so
+   it reads as a tap target without screaming. */
 iframe[title*="streamlit_geolocation"] {
   display: block !important;
   margin: 0 auto !important;
   cursor: pointer;
-  transform: scale(1.8);
+  width: 40px !important;
+  height: 40px !important;
+  background: transparent !important;
+  border: none !important;
+  transform: scale(1.6);
   transform-origin: center center;
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 iframe[title*="streamlit_geolocation"]:hover {
-  transform: scale(2.0);
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.15));
+  transform: scale(1.75);
+  filter: drop-shadow(0 3px 8px rgba(220, 38, 38, 0.25));
 }
 div[data-testid="stIFrame"] {
   margin: 14px 0 !important;
   padding: 0 !important;
-  min-height: 60px !important;
+  min-height: 70px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
