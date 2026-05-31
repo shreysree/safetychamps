@@ -1051,14 +1051,21 @@ h3 { margin-top: 0.6rem !important; margin-bottom: 0.3rem !important; }
 }
 .rc-alt { font-size: 13px; color: #374151; margin-top: 2px; }
 .rc-alt a { color: var(--c-blue-dark); text-decoration: none; }
-.rc-directions {
+.rc-directions,
+.rc-directions:link,
+.rc-directions:visited,
+.rc-directions:active {
   display: inline-block; margin-top: 8px;
-  background: #1D4ED8; color: #FFFFFF;
+  background: #3B82F6; color: #FFFFFF !important;
   padding: 6px 12px; border-radius: 6px;
   font-size: 13px; font-weight: 600; text-decoration: none;
-  transition: filter 0.15s ease, transform 0.15s ease;
+  transition: filter 0.15s ease, transform 0.15s ease, background 0.15s ease;
 }
-.rc-directions:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.rc-directions:hover {
+  background: #60A5FA;
+  transform: translateY(-1px);
+  text-decoration: none;
+}
 .rc-addr {
   font-size: 12px; color: #6B7280; margin-top: 8px;
   word-wrap: break-word; overflow-wrap: break-word;
