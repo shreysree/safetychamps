@@ -728,12 +728,28 @@ def render_contact_card(c, faded=False):
                 st.warning(t["low_conf_warning"])
         with col_c:
             cid = c.get("id", 0)
-            if cid and st.button("OK " + t["btn_worked"], key=f"ok_{cid}_{c['name'][:8]}"):
-                record_feedback(cid, True)
-                st.success(t["feedback_ok"])
-            if cid and st.button("X " + t["btn_failed"], key=f"no_{cid}_{c['name'][:8]}"):
-                record_feedback(cid, False)
-                st.error(t["feedback_fail"])
+            if cid:
+                # Compact thumbs widget. Returns 0 (👎) / 1 (👍) / None.
+                # st.feedback is in Streamlit >=1.37; fall back to plain
+                # buttons on older builds so we don't crash.
+                fb_key = f"fb_{cid}_{c['name'][:8]}"
+                try:
+                    fb = st.feedback("thumbs", key=fb_key)
+                    if fb == 1:
+                        record_feedback(cid, True)
+                        st.toast(t["feedback_ok"], icon="✅")
+                    elif fb == 0:
+                        record_feedback(cid, False)
+                        st.toast(t["feedback_fail"], icon="⚠️")
+                except Exception:
+                    if st.button("👍", key=f"ok_{cid}_{c['name'][:8]}",
+                                 help=t["btn_worked"]):
+                        record_feedback(cid, True)
+                        st.toast(t["feedback_ok"], icon="✅")
+                    if st.button("👎", key=f"no_{cid}_{c['name'][:8]}",
+                                 help=t["btn_failed"]):
+                        record_feedback(cid, False)
+                        st.toast(t["feedback_fail"], icon="⚠️")
 
 
 def section_order(intent):
