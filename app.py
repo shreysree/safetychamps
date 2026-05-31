@@ -977,38 +977,40 @@ div[data-testid="stSelectbox"] { margin-bottom: 0 !important; }
   letter-spacing: 1.2px;
   font-weight: 500;
 }
-/* GPS icon — explicit min size so it stays visible on mobile Safari.
-   transform: scale() doesn't change layout dimensions, so we set
-   min-width/min-height in pixels on both the iframe AND its Streamlit
-   wrapper to guarantee a tap target. Light red background + border so
-   it's recognisable as a button without being the heavy dashed card
-   we tried earlier. */
+/* GPS icon — keep the React component's natural size (~24×24) but
+   visually scale it 1.8× from its centre so the small crosshair reads
+   as a tappable target. No box/border (those made the icon look stuck
+   in the corner because streamlit-geolocation doesn't fill its iframe). */
 iframe[title*="streamlit_geolocation"] {
   display: block !important;
   margin: 0 auto !important;
   cursor: pointer;
-  min-width: 64px !important;
-  min-height: 64px !important;
-  width: 64px !important;
-  height: 64px !important;
-  border-radius: 12px !important;
-  background: var(--c-red-bg) !important;
-  border: 1.5px solid var(--c-red) !important;
-  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transform: scale(1.8);
+  transform-origin: center center;
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 iframe[title*="streamlit_geolocation"]:hover {
-  filter: brightness(1.05);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.22);
-  transform: translateY(-1px);
+  transform: scale(2.0);
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.15));
 }
 div[data-testid="stIFrame"] {
-  margin: 0 !important;
+  margin: 14px 0 !important;
   padding: 0 !important;
-  min-height: 70px !important;
+  min-height: 60px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
+
+/* Hide Streamlit Cloud's "Created by / Hosted with Streamlit" badge
+   that floats at the bottom-right corner — distracts from the
+   emergency UI and isn't part of our brand. */
+[data-testid="stStatusWidget"],
+[class*="viewerBadge"],
+.viewerBadge_container__r5tak,
+.viewerBadge_link__qRIco,
+footer[class*="ViewerBadge"] { display: none !important; }
+.stApp > footer { display: none !important; }
 
 /* ── Hover responsiveness on every clickable element ── */
 a[href^="tel:"],
