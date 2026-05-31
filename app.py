@@ -1325,7 +1325,13 @@ place_input = st.text_input(
     placeholder="Hosur · NH-44 · Chennai · Bengaluru",
     key="place_input",
     label_visibility="collapsed",
+    # Once GPS has resolved coords, disable the typed-place input so the
+    # user doesn't accidentally try both paths. If GPS fails (no coords)
+    # the input stays enabled as the fallback.
+    disabled=have_gps,
 )
+if have_gps:
+    st.caption(f"📍 GPS location captured · {auto_lat:.4f}, {auto_lon:.4f}")
 
 # ── Search trigger — explicit button, not auto-fire ───────────────────────
 # Earlier versions auto-ran the search the moment GPS resolved or the user
@@ -1340,6 +1346,19 @@ has_location_signal = have_gps or bool(place_txt)
 # Show the button only until the user has triggered a search at least once;
 # after that, refinement (Tell us what happened) takes over the rerun flow.
 if not st.session_state.get("search_triggered", False):
+    # Optional pre-search description — lets the user tell us about the
+    # situation BEFORE they tap Go, so the first search is already biased
+    # for the right urgency/services (trauma boost, blood bank, etc.)
+    with st.expander("💬 Tell us what happened (optional — helps prioritise)", expanded=False):
+        st.text_area(
+            "Describe situation",
+            value=st.session_state.get("pre_search_msg", ""),
+            placeholder=T["input_placeholder"],
+            height=80,
+            label_visibility="collapsed",
+            key="pre_search_msg",
+        )
+
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
     if st.button(
         "Go →",
@@ -1350,6 +1369,9 @@ if not st.session_state.get("search_triggered", False):
               if not has_location_signal else
               "Find nearest hospitals, police, and roadside help"),
     ):
+        # Hand the pre-search description off to the refine_msg slot that
+        # the existing parser pipeline reads from.
+        st.session_state.refine_msg = st.session_state.get("pre_search_msg", "")
         st.session_state.search_triggered = True
         st.rerun()
 
